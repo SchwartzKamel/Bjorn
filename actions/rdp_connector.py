@@ -183,7 +183,7 @@ class RDPConnector:
         Remove duplicate entries from the results CSV file.
         """
         df = pd.read_csv(self.rdpfile)
-        df.drop_duplicates(inplace=True)
+        df.drop_duplicates()
         df.to_csv(self.rdpfile, index=False)
 
 if __name__ == "__main__":
