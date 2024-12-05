@@ -86,7 +86,7 @@ class NmapVulnScanner:
 
         return combined_result if success else None
 
-    def execute(self, ip, row, status_key):
+    def execute(self, ip, row):
         """
         Executes the vulnerability scan for a given IP and row data.
         """
@@ -97,11 +97,8 @@ class NmapVulnScanner:
         if scan_result is not None:
             self.scan_results.append((ip, row["Hostnames"], row["MAC Address"]))
             self.save_results(row["MAC Address"], ip, scan_result)
-            return 'success'
-        else:
-            return 'success' # considering failed as success as we just need to scan vulnerabilities once
-            # return 'failed'
-
+        return 'success'
+        
     def parse_vulnerabilities(self, scan_result):
         """
         Parses the Nmap scan result to extract vulnerabilities.
