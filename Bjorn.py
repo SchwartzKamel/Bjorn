@@ -154,5 +154,5 @@ if __name__ == "__main__":
 
     except Exception as e:
         logger.error(f"An exception occurred during thread start: {e}")
-        handle_exit_display(signal.SIGINT, None)
+        handle_exit_display(signal.SIGINT, None, None)
         exit(1)
