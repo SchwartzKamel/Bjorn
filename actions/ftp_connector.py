@@ -33,7 +33,7 @@ class FTPBruteforce:
         """
         return self.ftp_connector.run_bruteforce(ip, port)
     
-    def execute(self, ip, port, row, status_key):
+    def execute(self, ip, port):
         """
         Executes the brute force attack and updates the shared data status.
         """
@@ -41,7 +41,7 @@ class FTPBruteforce:
         # Wait a bit because it's too fast to see the status change
         time.sleep(5)
         logger.info(f"Brute forcing FTP on {ip}:{port}...")
-        success, results = self.bruteforce_ftp(ip, port)
+        success, _ = self.bruteforce_ftp(ip, port)
         return 'success' if success else 'failed'
 
 class FTPConnector:
@@ -90,7 +90,7 @@ class FTPConnector:
             conn.quit()
             logger.info(f"Access to FTP successful on {adresse_ip} with user '{user}'")
             return True
-        except Exception as e:
+        except Exception as _:
             return False
 
     def worker(self, progress, task_id, success_flag):
@@ -167,7 +167,7 @@ class FTPConnector:
         Removes duplicate entries from the results file.
         """
         df = pd.read_csv(self.ftpfile)
-        df.drop_duplicates(inplace=True)
+        df.drop_duplicates()
         df.to_csv(self.ftpfile, index=False)
 
 if __name__ == "__main__":
