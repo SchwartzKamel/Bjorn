@@ -59,7 +59,7 @@ class Orchestrator:
             if module_name == "scanning":
                 self.load_scanner(module_name)
             elif module_name == "nmap_vuln_scanner":
-                self.load_nmap_vuln_scanner(module_name)
+                self.load_nmap_vuln_scanner()
             else:
                 self.load_action(module_name, action)
 
