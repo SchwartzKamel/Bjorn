@@ -204,7 +204,7 @@ class SQLConnector:
         Remove duplicate entries from the results CSV file.
         """
         df = pd.read_csv(self.sqlfile)
-        df.drop_duplicates(inplace=True)
+        df.drop_duplicates()
         df.to_csv(self.sqlfile, index=False)
 
 

@@ -231,7 +231,7 @@ class TelnetConnector:
         Remove duplicate entries from the results file.
         """
         df = pd.read_csv(self.telnetfile)
-        df.drop_duplicates(inplace=True)
+        df.drop_duplicates()
         df.to_csv(self.telnetfile, index=False)
 
 

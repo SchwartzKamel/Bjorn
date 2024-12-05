@@ -216,7 +216,7 @@ class SSHConnector:
         Remove duplicate entries from the results CSV file.
         """
         df = pd.read_csv(self.sshfile)
-        df.drop_duplicates(inplace=True)
+        df.drop_duplicates()
         df.to_csv(self.sshfile, index=False)
 
 

@@ -69,7 +69,7 @@ class Orchestrator:
         b_class = getattr(module, "b_class")
         self.network_scanner = getattr(module, b_class)(self.shared_data)
 
-    def load_nmap_vuln_scanner(self, module_name):
+    def load_nmap_vuln_scanner(self):
         """Load the nmap vulnerability scanner"""
         self.nmap_vuln_scanner = NmapVulnScanner(self.shared_data)
 
