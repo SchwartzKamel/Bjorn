@@ -356,7 +356,7 @@ class NetworkScanner:
                 con = s.connect((self.target, port))
                 self.open_ports[self.target].append(port)
                 con.close()
-            except:
+            except Exception as _:
                 pass
             finally:
                 s.close()  # Ensure the socket is closed
