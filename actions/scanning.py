@@ -24,6 +24,7 @@ import nmap
 
 logger = Logger(name="scanning.py", level=logging.DEBUG)
 
+# Define the necessary global variables
 b_class = "NetworkScanner"
 b_module = "scanning"
 b_status = "network_scanner"
@@ -149,6 +150,52 @@ class NetworkScanner:
                 except Exception as e:
                     self.outer_instance.logger.error(f"Error in get_ip_from_csv: {e}")
 
+    def ip_to_mac(self, netkb_data, netkb_entries, existing_action_columns):
+        ip_dict = {}  # Dictionary to track IP to MAC associations
+
+        for data in netkb_data:
+            mac, ip, hostname, ports = data
+            if (
+                not mac
+                or mac == "STANDALONE"
+                or ip == "STANDALONE"
+                or hostname == "STANDALONE"
+            ):
+                continue
+
+            # Check if MAC address is "00:00:00:00:00:00"
+            if mac == "00:00:00:00:00:00":
+                continue
+
+            if self.blacklistcheck and (
+                mac in self.mac_scan_blacklist or ip in self.ip_scan_blacklist
+            ):
+                continue
+
+            # Check if IP is already associated with a different MAC
+            if ip in ip_dict and ip_dict[ip] != mac:
+                # Mark the old MAC as not alive
+                old_mac = ip_dict[ip]
+                netkb_entries[old_mac]["Alive"] = "0"
+
+            # Update or create entry for the new MAC
+            ip_dict[ip] = mac
+            if mac in netkb_entries:
+                netkb_entries[mac]["IPs"].add(ip)
+                netkb_entries[mac]["Hostnames"].add(hostname)
+                netkb_entries[mac]["Alive"] = "1"
+                netkb_entries[mac]["Ports"].update(map(str, ports))
+            else:
+                netkb_entries[mac] = {
+                    "IPs": {ip},
+                    "Hostnames": {hostname},
+                    "Alive": "1",
+                    "Ports": set(map(str, ports)),
+                }
+                for action in existing_action_columns:
+                    netkb_entries[mac][action] = ""
+        return mac
+
     def update_netkb(self, netkbfile, netkb_data, alive_macs):
         """
         Updates the net knowledge base (netkb) file with the scan results.
@@ -184,50 +231,7 @@ class NetworkScanner:
                             for action in existing_action_columns:
                                 netkb_entries[mac][action] = row.get(action, "")
 
-                ip_to_mac = {}  # Dictionary to track IP to MAC associations
-
-                for data in netkb_data:
-                    mac, ip, hostname, ports = data
-                    if (
-                        not mac
-                        or mac == "STANDALONE"
-                        or ip == "STANDALONE"
-                        or hostname == "STANDALONE"
-                    ):
-                        continue
-
-                    # Check if MAC address is "00:00:00:00:00:00"
-                    if mac == "00:00:00:00:00:00":
-                        continue
-
-                    if self.blacklistcheck and (
-                        mac in self.mac_scan_blacklist or ip in self.ip_scan_blacklist
-                    ):
-                        continue
-
-                    # Check if IP is already associated with a different MAC
-                    if ip in ip_to_mac and ip_to_mac[ip] != mac:
-                        # Mark the old MAC as not alive
-                        old_mac = ip_to_mac[ip]
-                        if old_mac in netkb_entries:
-                            netkb_entries[old_mac]["Alive"] = "0"
-
-                    # Update or create entry for the new MAC
-                    ip_to_mac[ip] = mac
-                    if mac in netkb_entries:
-                        netkb_entries[mac]["IPs"].add(ip)
-                        netkb_entries[mac]["Hostnames"].add(hostname)
-                        netkb_entries[mac]["Alive"] = "1"
-                        netkb_entries[mac]["Ports"].update(map(str, ports))
-                    else:
-                        netkb_entries[mac] = {
-                            "IPs": {ip},
-                            "Hostnames": {hostname},
-                            "Alive": "1",
-                            "Ports": set(map(str, ports)),
-                        }
-                        for action in existing_action_columns:
-                            netkb_entries[mac][action] = ""
+                mac = self.ip_to_mac(netkb_data, netkb_entries, existing_action_columns)
 
                 # Update all existing entries to mark missing hosts as not alive
                 for mac in netkb_entries:
