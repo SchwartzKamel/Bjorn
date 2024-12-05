@@ -42,8 +42,8 @@ class Logger:
     LOGS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "logs")
 
     def __init__(self, name, level=logging.DEBUG, enable_file_logging=True):
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(level)
+        self.log = logging.getLogger(name)
+        self.log.setLevel(level)
         self.enable_file_logging = enable_file_logging
 
         # Define custom log level styles
