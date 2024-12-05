@@ -1,9 +1,9 @@
-#bjorn.py
+# bjorn.py
 # This script defines the main execution flow for the Bjorn application. It initializes and starts
-# various components such as network scanning, display, and web server functionalities. The Bjorn 
+# various components such as network scanning, display, and web server functionalities. The Bjorn
 # class manages the primary operations, including initiating network scans and orchestrating tasks.
 # The script handles startup delays, checks for Wi-Fi connectivity, and coordinates the execution of
-# scanning and orchestrator tasks using semaphores to limit concurrent threads. It also sets up 
+# scanning and orchestrator tasks using semaphores to limit concurrent threads. It also sets up
 # signal handlers to ensure a clean exit when the application is terminated.
 
 # Functions:
@@ -30,8 +30,10 @@ from logger import Logger
 
 logger = Logger(name="Bjorn.py", level=logging.DEBUG)
 
+
 class Bjorn:
     """Main class for Bjorn. Manages the primary operations of the application."""
+
     def __init__(self, shared_data):
         self.shared_data = shared_data
         self.commentaire_ia = Commentaireia()
@@ -41,8 +43,13 @@ class Bjorn:
     def run(self):
         """Main loop for Bjorn. Waits for Wi-Fi connection and starts Orchestrator."""
         # Wait for startup delay if configured in shared data
-        if hasattr(self.shared_data, 'startup_delay') and self.shared_data.startup_delay > 0:
-            logger.info(f"Waiting for startup delay: {self.shared_data.startup_delay} seconds")
+        if (
+            hasattr(self.shared_data, "startup_delay")
+            and self.shared_data.startup_delay > 0
+        ):
+            logger.info(
+                f"Waiting for startup delay: {self.shared_data.startup_delay} seconds"
+            )
             time.sleep(self.shared_data.startup_delay)
 
         # Main loop to keep Bjorn running
@@ -51,13 +58,14 @@ class Bjorn:
                 self.check_and_start_orchestrator()
             time.sleep(10)  # Main loop idle waiting
 
-
-
     def check_and_start_orchestrator(self):
         """Check Wi-Fi and start the orchestrator if connected."""
         if self.is_wifi_connected():
             self.wifi_connected = True
-            if self.orchestrator_thread is None or not self.orchestrator_thread.is_alive():
+            if (
+                self.orchestrator_thread is None
+                or not self.orchestrator_thread.is_alive()
+            ):
                 self.start_orchestrator()
         else:
             self.wifi_connected = False
@@ -65,14 +73,21 @@ class Bjorn:
 
     def start_orchestrator(self):
         """Start the orchestrator thread."""
-        self.is_wifi_connected() # reCheck if Wi-Fi is connected before starting the orchestrator
-        if self.wifi_connected:  # Check if Wi-Fi is connected before starting the orchestrator
-            if self.orchestrator_thread is None or not self.orchestrator_thread.is_alive():
+        self.is_wifi_connected()  # reCheck if Wi-Fi is connected before starting the orchestrator
+        if (
+            self.wifi_connected
+        ):  # Check if Wi-Fi is connected before starting the orchestrator
+            if (
+                self.orchestrator_thread is None
+                or not self.orchestrator_thread.is_alive()
+            ):
                 logger.info("Starting Orchestrator thread...")
                 self.shared_data.orchestrator_should_exit = False
                 self.shared_data.manual_mode = False
                 self.orchestrator = Orchestrator()
-                self.orchestrator_thread = threading.Thread(target=self.orchestrator.run)
+                self.orchestrator_thread = threading.Thread(
+                    target=self.orchestrator.run
+                )
                 self.orchestrator_thread.start()
                 logger.info("Orchestrator thread started, automatic mode activated.")
             else:
@@ -83,7 +98,9 @@ class Bjorn:
     def stop_orchestrator(self):
         """Stop the orchestrator thread."""
         self.shared_data.manual_mode = True
-        logger.info("Stop button pressed. Manual mode activated & Stopping Orchestrator...")
+        logger.info(
+            "Stop button pressed. Manual mode activated & Stopping Orchestrator..."
+        )
         if self.orchestrator_thread is not None and self.orchestrator_thread.is_alive():
             logger.info("Stopping Orchestrator thread...")
             self.shared_data.orchestrator_should_exit = True
@@ -97,11 +114,14 @@ class Bjorn:
 
     def is_wifi_connected(self):
         """Checks for Wi-Fi connectivity using the nmcli command."""
-        result = subprocess.Popen(['nmcli', '-t', '-f', 'active', 'dev', 'wifi'], stdout=subprocess.PIPE, text=True).communicate()[0]
-        self.wifi_connected = 'yes' in result
+        result = subprocess.Popen(
+            ["nmcli", "-t", "-f", "active", "dev", "wifi"],
+            stdout=subprocess.PIPE,
+            text=True,
+        ).communicate()[0]
+        self.wifi_connected = "yes" in result
         return self.wifi_connected
 
-    
     @staticmethod
     def start_display():
         """Start the display thread"""
@@ -109,6 +129,7 @@ class Bjorn:
         display_thread = threading.Thread(target=display.run)
         display_thread.start()
         return display_thread
+
 
 def handle_exit(sig, frame, display_thread, bjorn_thread, web_thread):
     """Handles the termination of the main, display, and web threads."""
@@ -125,7 +146,6 @@ def handle_exit(sig, frame, display_thread, bjorn_thread, web_thread):
         web_thread.join()
     logger.info("Main loop finished. Clean exit.")
     sys.exit(0)  # Used sys.exit(0) instead of exit(0)
-
 
 
 if __name__ == "__main__":
@@ -149,8 +169,18 @@ if __name__ == "__main__":
             logger.info("Starting the web server...")
             web_thread.start()
 
-        signal.signal(signal.SIGINT, lambda sig, frame: handle_exit(sig, frame, display_thread, bjorn_thread, web_thread))
-        signal.signal(signal.SIGTERM, lambda sig, frame: handle_exit(sig, frame, display_thread, bjorn_thread, web_thread))
+        signal.signal(
+            signal.SIGINT,
+            lambda sig, frame: handle_exit(
+                sig, frame, display_thread, bjorn_thread, web_thread
+            ),
+        )
+        signal.signal(
+            signal.SIGTERM,
+            lambda sig, frame: handle_exit(
+                sig, frame, display_thread, bjorn_thread, web_thread
+            ),
+        )
 
     except Exception as e:
         logger.error(f"An exception occurred during thread start: {e}")

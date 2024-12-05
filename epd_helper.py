@@ -5,6 +5,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class EPDHelper:
     def __init__(self, epd_type):
         self.epd_type = epd_type
@@ -12,7 +13,7 @@ class EPDHelper:
 
     def _load_epd_module(self):
         try:
-            epd_module_name = f'resources.waveshare_epd.{self.epd_type}'
+            epd_module_name = f"resources.waveshare_epd.{self.epd_type}"
             epd_module = importlib.import_module(epd_module_name)
             return epd_module.EPD()
         except ImportError as e:
@@ -24,9 +25,9 @@ class EPDHelper:
 
     def init_full_update(self):
         try:
-            if hasattr(self.epd, 'FULL_UPDATE'):
+            if hasattr(self.epd, "FULL_UPDATE"):
                 self.epd.init(self.epd.FULL_UPDATE)
-            elif hasattr(self.epd, 'lut_full_update'):
+            elif hasattr(self.epd, "lut_full_update"):
                 self.epd.init(self.epd.lut_full_update)
             else:
                 self.epd.init()
@@ -37,9 +38,9 @@ class EPDHelper:
 
     def init_partial_update(self):
         try:
-            if hasattr(self.epd, 'PART_UPDATE'):
+            if hasattr(self.epd, "PART_UPDATE"):
                 self.epd.init(self.epd.PART_UPDATE)
-            elif hasattr(self.epd, 'lut_partial_update'):
+            elif hasattr(self.epd, "lut_partial_update"):
                 self.epd.init(self.epd.lut_partial_update)
             else:
                 self.epd.init()
@@ -50,7 +51,7 @@ class EPDHelper:
 
     def display_partial(self, image):
         try:
-            if hasattr(self.epd, 'displayPartial'):
+            if hasattr(self.epd, "displayPartial"):
                 self.epd.displayPartial(self.epd.getbuffer(image))
             else:
                 self.epd.display(self.epd.getbuffer(image))

