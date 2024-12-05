@@ -23,6 +23,15 @@ b_module = "rdp_connector"
 b_status = "brute_force_rdp"
 b_port = 3389
 b_parent = None
+# TODO
+"""
+adresse_ip = None # define default after known
+user = None # define default after known
+password = None # define default after known
+mac_address = None # define default after known
+hostname = None # define default after known
+port = None # define type default known
+"""
 
 class RDPBruteforce:
     """
@@ -40,13 +49,13 @@ class RDPBruteforce:
         logger.info(f"Running bruteforce_rdp on {ip}:{port}...")
         return self.rdp_connector.run_bruteforce(ip, port)
     
-    def execute(self, ip, port, row, status_key):
+    def execute(self, ip, port):
         """
         Execute the brute force attack and update status.
         """
         logger.info(f"Executing RDPBruteforce on {ip}:{port}...")
         self.shared_data.bjornorch_status = "RDPBruteforce"
-        success, results = self.bruteforce_rdp(ip, port)
+        success, _ = self.bruteforce_rdp(ip, port)
         return 'success' if success else 'failed'
 
 class RDPConnector:
